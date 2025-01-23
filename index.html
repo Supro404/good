@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>QR Code Scanner</h1>
+    <div id="reader"></div>
+    <div id="result">Scan a QR Code to get started.</div>
+
+    <script>
+        // Path to the CSV file with valid Transaction IDs on your GitHub repository
+        const csvPath = "https://raw.githubusercontent.com/Supro404/good/main/transactionid.csv";
+
+        // Function to load CSV and parse Transaction IDs
+        async function loadValidTransactions() {
+            const response = await fetch(csvPath);
+            const csvText = await response.text();
+            const lines = csvText.split("\n");
+            const validTransactionIds = lines.map(line => line.trim());
+            return new Set(validTransactionIds); // Use a Set for fast lookup
+        }
+
+        // Initialize QR code reader
+        function startScanner(validTransactions) {
+            const reader = new Html5Qrcode("reader");
+
+            // Handle successful QR code scans
+            function onScanSuccess(decodedText) {
+                const resultDiv = document.getElementById("result");
+                const lines = decodedText.split("\n");
+                let transactionId = "";
+
+                // Parse the Transaction ID from QR code content
+                lines.forEach(line => {
+                    if (line.startsWith("Transaction ID:")) {
+                        transactionId = line.replace("Transaction ID:", "").trim();
+                    }
+                });
+
+                if (transactionId && validTransactions.has(transactionId)) {
+                    resultDiv.textContent = "OK, Paid";
+                    resultDiv.style.color = "green";
+                } else {
+                    resultDiv.textContent = "Not Exist";
+                    resultDiv.style.color = "red";
+                }
+            }
+
+            function onScanError(error) {
+                console.warn("QR Code scan error:", error);
+            }
+
+            // Start the scanner
+            reader.start(
+                { facingMode: "environment" }, // Use the back camera
+                { fps: 10, qrbox: 250 },
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                console.error("Error starting QR scanner:", err);
+                const resultDiv = document.getElementById("result");
+                resultDiv.textContent = "Camera access is required.";
+                resultDiv.style.color = "red";
+            });
+        }
+
+        // Load valid transactions and start the scanner
+        loadValidTransactions().then(validTransactions => {
+            startScanner(validTransactions);
+        }).catch(err => {
+            console.error("Error loading transactions:", err);
+            const resultDiv = document.getElementById("result");
+            resultDiv.textContent = "Failed to load valid transactions.";
+            resultDiv.style.color = "red";
+        });
+    </script>
+</body>
+</html>
